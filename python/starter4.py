@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-bulk_data = False
+bulk_data = True
 
 # ----------------------------------
 
@@ -29,15 +29,11 @@ async def connect_to_elasticsearch():
 
     return es_client
 
+
+
 def load_data(es_client):
     from llama_index import SimpleDirectoryReader
 
-    from llama_index.callbacks import (
-        CallbackManager,
-        LlamaDebugHandler,
-        CBEventType,
-    )    
-    
     # Creates a reader for the /data folder        
     if bulk_data:
         documents = SimpleDirectoryReader("python/data").load_data(show_progress=True)
@@ -48,7 +44,8 @@ def load_data(es_client):
 
     es_vector_store = ElasticsearchStore(
         index_name=ES_DEFAULT_INDEX,
-        es_client=es_client 
+        es_client=es_client ,
+        
     )
 
     # Service ctx for debug
@@ -56,11 +53,14 @@ def load_data(es_client):
     from llama_index.llms import OpenAI
     
     llm = OpenAI(model="gpt-3.5-turbo", temperature=0)
-    llama_debug = LlamaDebugHandler(print_trace_on_end=True)
-    callback_manager = CallbackManager([llama_debug])
+    
+    from llama_index.embeddings import HuggingFaceEmbedding    
+    embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     service_context = ServiceContext.from_defaults(
-        callback_manager=callback_manager, llm=llm
+        # callback_manager=callback_manager, 
+        llm=llm,
+        embed_model=embed_model
     )
 
     # Creates the index
@@ -74,11 +74,24 @@ def load_data(es_client):
     
     if bulk_data:
         index = VectorStoreIndex.from_documents(
-            documents, storage_context=storage_context, service_context=service_context
+            documents, 
+            storage_context=storage_context, 
+            service_context=service_context
         )
     else:
-        index = VectorStoreIndex.from_vector_store(vector_store=es_vector_store, service_context=service_context)        
+        index = VectorStoreIndex.from_vector_store(
+            vector_store=es_vector_store, 
+            service_context=service_context)        
     
+    from llama_hub.youtube_transcript import YoutubeTranscriptReader
+
+    loader = YoutubeTranscriptReader()
+    documents = loader.load_data(ytlinks=['https://www.youtube.com/watch?v=i3OYlaoj-BM'])
+
+    index = VectorStoreIndex.from_documents(
+            documents, storage_context=storage_context, service_context=service_context
+        )
+
     return index
 
 async def main():
