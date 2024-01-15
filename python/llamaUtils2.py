@@ -1,3 +1,4 @@
+from json.encoder import ESCAPE_ASCII
 import os
 from elasticsearch import AsyncElasticsearch
 from elasticsearch._async.client import nodes
@@ -19,7 +20,7 @@ from llama_index.ingestion import (
     IngestionCache,
 )
 from llama_index.ingestion.cache import RedisCache
-from llama_index.storage.docstore import RedisDocumentStore
+from llama_index.storage.docstore import RedisDocumentStore, SimpleDocumentStore
 from llama_index.text_splitter import SentenceSplitter
     
 def create_elastic_client() -> AsyncElasticsearch:
@@ -48,6 +49,7 @@ def create_vector_store(es_client: AsyncElasticsearch) -> ElasticsearchStore:
         index_name = idx_name,
         es_client = es_client,
     )
+        
 
     return es_vector_store
 
@@ -56,6 +58,7 @@ def custom_load_data(loader: BaseReader, folder_id: str):
     docs = loader.load_data(folder_id=folder_id)
     for doc in docs:
         doc.id_ = doc.metadata["file_name"]
+        print(f"Processing {doc.id_}")
     return docs
 
 async def load_from_googledrive2(deleteIndex: bool = False) -> VectorStoreIndex:    
@@ -68,10 +71,9 @@ async def load_from_googledrive2(deleteIndex: bool = False) -> VectorStoreIndex:
         collection="redis_cache",
     )
 
-    #if (deleteIndex and es_vector_store._index_exists()):
-    #    vector_store.delete_index()
-
     embed_model = HuggingFaceEmbedding(model_name=os.getenv("EMBEDDING_MODEL"))
+
+
 
     pipeline = IngestionPipeline(
         
@@ -82,17 +84,22 @@ async def load_from_googledrive2(deleteIndex: bool = False) -> VectorStoreIndex:
         docstore=RedisDocumentStore.from_host_and_port(
             "localhost", 6379, namespace="document_store"
         ),
+        #docstore = SimpleDocumentStore.from_persist_path("python/.storage"),
         vector_store=es_vector_store,
         cache=cache,
         docstore_strategy=DocstoreStrategy.UPSERTS,
     )
-    storage_context = StorageContext.from_defaults(vector_store = es_vector_store)
+    
+    storage_context = StorageContext.from_defaults(
+        vector_store = es_vector_store
+    )       
+    
     index = VectorStoreIndex.from_vector_store(
         storage_context=storage_context, 
         service_context=service_context,
         vector_store=es_vector_store,
         show_progress=True,        
-    )
+    )       
     
     GoogleDriveReader = download_loader("GoogleDriveReader")
     loader = GoogleDriveReader()    

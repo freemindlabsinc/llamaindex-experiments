@@ -20,7 +20,7 @@ async def main():
         if question == "":
             question = "what is the program prince?"
         
-        question += " [RESPOND IN ITALIAN]";
+        #question += " [RESPOND IN ITALIAN]";
 
         response = query_engine.query(question)
         
