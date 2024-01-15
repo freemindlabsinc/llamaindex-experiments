@@ -20,17 +20,8 @@ from llama_index.ingestion import (
     IngestionCache,
 )
 from llama_index.ingestion.cache import RedisCache
-from llama_index.storage.docstore import RedisDocumentStore, SimpleDocumentStore
+from llama_index.storage.docstore import BaseDocumentStore, DocumentStore, RedisDocumentStore, SimpleDocumentStore, redis_docstore
 from llama_index.text_splitter import SentenceSplitter
-    
-def create_elastic_client() -> AsyncElasticsearch:
-    es_client = AsyncElasticsearch(
-        [os.getenv("ES_URL")],
-        ssl_assert_fingerprint = os.getenv("ES_CERTIFICATE_FINGERPRINT"),
-        basic_auth = (os.getenv("ES_USERNAME"), os.getenv("ES_PASSWORD"))
-    )
-    
-    return es_client
     
 def create_service_context() -> ServiceContext:
     llm = OpenAI(model= os.getenv("OPENAI_CHAT_MODEL"), temperature= os.getenv("OPENAI_MODEL_TEMPERATURE"))    
@@ -42,7 +33,12 @@ def create_service_context() -> ServiceContext:
 
     return service_context
 
-def create_vector_store(es_client: AsyncElasticsearch) -> ElasticsearchStore:
+def create_vector_store() -> ElasticsearchStore:
+    es_client = AsyncElasticsearch(
+        [os.getenv("ES_URL")],
+        ssl_assert_fingerprint = os.getenv("ES_CERTIFICATE_FINGERPRINT"),
+        basic_auth = (os.getenv("ES_USERNAME"), os.getenv("ES_PASSWORD"))
+    )
     idx_name = os.getenv("ES_DEFAULT_INDEX")
     
     es_vector_store = ElasticsearchStore(
@@ -53,6 +49,20 @@ def create_vector_store(es_client: AsyncElasticsearch) -> ElasticsearchStore:
 
     return es_vector_store
 
+def create_document_store() -> BaseDocumentStore:
+    redis_doc_store = RedisDocumentStore.from_host_and_port(
+        "localhost", 6379, 
+        namespace="document_store"
+    )
+    return;
+
+def create_ingestion_cache():
+    cache = IngestionCache(
+        cache=RedisCache.from_host_and_port("localhost", 6379),
+        collection="redis_cache",
+    )
+
+    return cache;
 
 def custom_load_data(loader: BaseReader, folder_id: str):
     docs = loader.load_data(folder_id=folder_id)
@@ -61,50 +71,43 @@ def custom_load_data(loader: BaseReader, folder_id: str):
         print(f"Processing {doc.id_}")
     return docs
 
-async def load_from_googledrive2(deleteIndex: bool = False) -> VectorStoreIndex:    
-    es_client = create_elastic_client()    
-    es_vector_store = create_vector_store(es_client)
-    service_context = create_service_context()
-    
-    cache = IngestionCache(
-        cache=RedisCache.from_host_and_port("localhost", 6379),
-        collection="redis_cache",
-    )
+def update_llama(pipeline: IngestionPipeline):
+    GoogleDriveReader = download_loader("GoogleDriveReader")
+    loader = GoogleDriveReader()        
+    documents = custom_load_data(loader=loader, folder_id=os.getenv("GOOGLE_FOLDER"))
+    pipeline.run(documents=documents, show_progress=True)
 
+    return
+
+def load_from_googledrive2(deleteIndex: bool = False) -> (VectorStoreIndex, IngestionPipeline):    
+    vector_store = create_vector_store()
+    service_context = create_service_context()
+    doc_store = create_document_store()    
+    cache = create_ingestion_cache();
     embed_model = HuggingFaceEmbedding(model_name=os.getenv("EMBEDDING_MODEL"))
 
-
-
-    pipeline = IngestionPipeline(
-        
+    pipeline = IngestionPipeline(        
         transformations=[
             SentenceSplitter(),
             embed_model,
         ],
-        docstore=RedisDocumentStore.from_host_and_port(
-            "localhost", 6379, namespace="document_store"
-        ),
-        #docstore = SimpleDocumentStore.from_persist_path("python/.storage"),
-        vector_store=es_vector_store,
+        docstore=doc_store,
+        vector_store=vector_store,
         cache=cache,
         docstore_strategy=DocstoreStrategy.UPSERTS,
     )
     
+    update_llama(pipeline);
+
     storage_context = StorageContext.from_defaults(
-        vector_store = es_vector_store
-    )       
+        vector_store = vector_store
+    )    
     
     index = VectorStoreIndex.from_vector_store(
         storage_context=storage_context, 
         service_context=service_context,
-        vector_store=es_vector_store,
+        vector_store=vector_store,
         show_progress=True,        
-    )       
+    )    
     
-    GoogleDriveReader = download_loader("GoogleDriveReader")
-    loader = GoogleDriveReader()    
-    
-    documents = loader.load_data(folder_id="1whzYDdYsTlpM5TUe-mlfhof-r2Upj0Rs")
-    pipeline.run(documents=documents, show_progress=True)
-
-    return index;
+    return index, pipeline
