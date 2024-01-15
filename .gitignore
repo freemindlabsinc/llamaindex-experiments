@@ -398,3 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 /python/.env
 /python/credentials.json
+/credentials.json
