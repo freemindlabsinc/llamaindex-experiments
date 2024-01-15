@@ -90,7 +90,7 @@ async def load_from_googledrive(deleteIndex: bool = False) -> VectorStoreIndex:
     #### Using folder id
     documents = loader.load_data(folder_id="1whzYDdYsTlpM5TUe-mlfhof-r2Upj0Rs")
     #documents = loader.load_data(file_ids= ["1jfhSUgE0wIoceFzoVz2sDHjUVnh7cTYf"])
-    
+
     index = VectorStoreIndex.from_documents(
         documents, 
         storage_context=storage_context, 

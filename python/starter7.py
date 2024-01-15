@@ -1,5 +1,6 @@
 print("Initializing")
 
+from math import pi
 import loggingUtils as logging
 import llamaUtils2 as llama
 from colorama import Fore
@@ -8,7 +9,8 @@ delete_index = True
 
 async def main():    
     #index = await llama.bulk_from_local_folder(start_fresh);
-    index = await llama.load_from_googledrive2(delete_index)
+    index, pipeline = llama.load_from_googledrive2(delete_index)
+    
     #index = await llama.load_existing_data(delete_index);
 
     # set Logging to DEBUG for more detailed outputs
@@ -16,9 +18,12 @@ async def main():
     
     # What is Prince and what can you tell me about Hyphenation?
     while (True):
-        question = input(Fore.WHITE + "Enter your question: ")
+        question = input(Fore.WHITE + "Enter your question (refresh to check the drive): ")
         if question == "":
             question = "what is the program prince?"
+        elif question == "/refresh":
+            llama.update_llama(pipeline=pipeline)            
+            continue
         
         #question += " [RESPOND IN ITALIAN]";
 
