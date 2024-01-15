@@ -1,11 +1,11 @@
 import loggingUtils as logging
-import llamaUtils as llama
+import llamaUtils2 as llama
 
 delete_index = True
 
 async def main():    
     #index = await llama.bulk_from_local_folder(start_fresh);
-    index = await llama.load_from_googledrive(delete_index)
+    index = await llama.load_from_googledrive2(delete_index)
     #index = await llama.load_existing_data(delete_index);
 
     # set Logging to DEBUG for more detailed outputs

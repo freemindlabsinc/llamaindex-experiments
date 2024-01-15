@@ -1,5 +1,6 @@
 import os
 from elasticsearch import AsyncElasticsearch
+from elasticsearch._async.client import nodes
 from llama_index import SimpleDirectoryReader
 from llama_index import ServiceContext
 from llama_index.indices import vector_store
@@ -10,8 +11,18 @@ from llama_index.vector_stores import ElasticsearchStore
 from llama_index.storage.storage_context import StorageContext
 from llama_index import VectorStoreIndex
 from llama_index import download_loader
+# --- new
+from llama_index.embeddings import HuggingFaceEmbedding
+from llama_index.ingestion import (
+    DocstoreStrategy,
+    IngestionPipeline,
+    IngestionCache,
+)
+from llama_index.ingestion.cache import RedisCache
+from llama_index.storage.docstore import RedisDocumentStore
+from llama_index.text_splitter import SentenceSplitter
     
-async def create_elastic_client(deleteIndex: bool = False) -> AsyncElasticsearch:
+async def create_elastic_client() -> AsyncElasticsearch:
     es_client = AsyncElasticsearch(
         [os.getenv("ES_URL")],
         ssl_assert_fingerprint = os.getenv("ES_CERTIFICATE_FINGERPRINT"),
@@ -19,8 +30,6 @@ async def create_elastic_client(deleteIndex: bool = False) -> AsyncElasticsearch
     )
     
     await es_client.info() # Connects to the cluster and gets its version
-    if deleteIndex: 
-        await es_client.indices.delete(index=os.getenv("ES_DEFAULT_INDEX"), ignore=[400, 404])        
 
     return es_client
     
@@ -100,3 +109,53 @@ async def load_from_googledrive(deleteIndex: bool = False) -> VectorStoreIndex:
     )
 
     return index  
+
+def custom_load_data(loader: BaseReader, folder_id: str):
+    docs = loader.load_data(folder_id=folder_id)
+    for doc in docs:
+        doc.id_ = doc.metadata["file_name"]
+    return docs
+
+async def load_from_googledrive2(deleteIndex: bool = False) -> VectorStoreIndex:    
+    es_client = await create_elastic_client()    
+    es_vector_store = create_vector_store(es_client)
+    service_context = create_service_context()
+    
+    cache = IngestionCache(
+        cache=RedisCache.from_host_and_port("localhost", 6379),
+        collection="redis_cache",
+    )
+
+    #if (deleteIndex and es_vector_store._index_exists()):
+    #    vector_store.delete_index()
+
+    embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    pipeline = IngestionPipeline(
+        
+        transformations=[
+            SentenceSplitter(),
+            embed_model,
+        ],
+        docstore=RedisDocumentStore.from_host_and_port(
+            "localhost", 6379, namespace="document_store"
+        ),
+        vector_store=es_vector_store,
+        cache=cache,
+        docstore_strategy=DocstoreStrategy.UPSERTS,
+    )
+    storage_context = StorageContext.from_defaults(vector_store = es_vector_store)
+    index = VectorStoreIndex.from_vector_store(
+        storage_context=storage_context, 
+        service_context=service_context,
+        vector_store=es_vector_store,
+        show_progress=True,        
+    )
+    
+    GoogleDriveReader = download_loader("GoogleDriveReader")
+    loader = GoogleDriveReader()    
+    
+    documents = loader.load_data(folder_id="1whzYDdYsTlpM5TUe-mlfhof-r2Upj0Rs")
+    pipeline.run(documents=documents, show_progress=True)
+
+    return index;
