@@ -2,6 +2,7 @@ print("Initializing")
 
 import loggingUtils as logging
 import llamaUtils2 as llama
+from colorama import Fore
 
 delete_index = True
 
@@ -15,24 +16,27 @@ async def main():
     
     # What is Prince and what can you tell me about Hyphenation?
     while (True):
-        question = input("Enter your question: ")
+        question = input(Fore.WHITE + "Enter your question: ")
         if question == "":
             question = "what is the program prince?"
+        
+        question += " [RESPOND IN ITALIAN]";
+
         response = query_engine.query(question)
         
         print("**************************** REFERENCES ****************************")
         idx = 1
         for src in response.source_nodes:                      
-            file_name = src.metadata["file_name"]
-            page = src.metadata["page_label"]
-            mime = src.metadata["mime type"]
-            created = src.metadata["created at"]
-            modified = src.metadata["modified at"]
+            file_name = src.metadata.get("file name", "UNKNOWN")
+            page = src.metadata.get("page_label", "None")
+            mime = src.metadata.get("mime type", "NO-MIME")
+            created = src.metadata.get("created at", "Sometime")
+            modified = src.metadata.get("modified at", "Sometime after")
             
-            print(f"[Ref #{idx}] Page {page} of {file_name}. Last modified {modified}, MIME {mime}.")
+            print(Fore.LIGHTBLACK_EX + f"[Ref #{idx}] Page {page} of {file_name}. Last modified {modified}, MIME {mime}.")
             idx += 1
             
-        print("**************************** Q&A ****************************")
+        print(Fore.GREEN + "**************************** Q&A ****************************")
         print("Q: " + question)
         print("A: " + str(response))        
 
