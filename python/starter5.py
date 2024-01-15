@@ -7,11 +7,12 @@ load_dotenv()
 
 # Azure Queue connection string and queue name
 connect_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-notifications_queue_name = os.getenv("NOTIFICATIONS_QUEUE_NAME")
+queue_name = os.getenv("AZURE_OPERATIONS_QUEUE_NAME")
+#queue_name = os.getenv("AZURE_NOTIFICATIONS_QUEUE_NAME")
 
 # Initialize the QueueServiceClient
 queue_service = QueueServiceClient.from_connection_string(connect_str)
-queue_client = queue_service.get_queue_client(notifications_queue_name)
+queue_client = queue_service.get_queue_client(queue_name)
 
 # Continuously read and process messages
 while True:

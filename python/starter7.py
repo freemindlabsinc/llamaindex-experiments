@@ -1,3 +1,5 @@
+print("Initializing")
+
 import loggingUtils as logging
 import llamaUtils2 as llama
 
@@ -19,7 +21,17 @@ async def main():
         response = query_engine.query(question)
         
         print("**************************** REFERENCES ****************************")
-        print("Refs " + str(response.source_nodes))
+        idx = 1
+        for src in response.source_nodes:                      
+            file_name = src.metadata["file_name"]
+            page = src.metadata["page_label"]
+            mime = src.metadata["mime type"]
+            created = src.metadata["created at"]
+            modified = src.metadata["modified at"]
+            
+            print(f"[Ref #{idx}] Page {page} of {file_name}. Last modified {modified}, MIME {mime}.")
+            idx += 1
+            
         print("**************************** Q&A ****************************")
         print("Q: " + question)
         print("A: " + str(response))        
