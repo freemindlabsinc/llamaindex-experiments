@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 
@@ -114,8 +115,5 @@ async def main():
         print("Q: " + question)
         print("A: " + str(response))        
 
-import asyncio
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+asyncio.run(main())
 

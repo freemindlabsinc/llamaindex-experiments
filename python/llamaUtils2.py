@@ -22,6 +22,7 @@ from llama_index.ingestion import (
 from llama_index.ingestion.cache import RedisCache
 from llama_index.storage.docstore import BaseDocumentStore, DocumentStore, RedisDocumentStore, SimpleDocumentStore, redis_docstore
 from llama_index.text_splitter import SentenceSplitter
+from llama_index.vector_stores.types import BasePydanticVectorStore
     
 def create_service_context() -> ServiceContext:
     llm = OpenAI(model= os.getenv("OPENAI_CHAT_MODEL"), temperature= os.getenv("OPENAI_MODEL_TEMPERATURE"))    
@@ -33,7 +34,7 @@ def create_service_context() -> ServiceContext:
 
     return service_context
 
-def create_vector_store() -> ElasticsearchStore:
+def create_vector_store() -> BasePydanticVectorStore:
     es_client = AsyncElasticsearch(
         [os.getenv("ES_URL")],
         ssl_assert_fingerprint = os.getenv("ES_CERTIFICATE_FINGERPRINT"),
@@ -44,36 +45,43 @@ def create_vector_store() -> ElasticsearchStore:
     es_vector_store = ElasticsearchStore(
         index_name = idx_name,
         es_client = es_client,
-    )
-        
+    )        
 
     return es_vector_store
 
 def create_document_store() -> BaseDocumentStore:
     redis_doc_store = RedisDocumentStore.from_host_and_port(
-        "localhost", 6379, 
-        namespace="document_store"
+        host=os.getenv("REDIS_SERVER"), 
+        port=os.getenv("REDIS_PORT"), 
+        namespace=os.getenv("REDIS_DOCUMENT_STORE_NAMESPACE")
     )
-    return;
+    return redis_doc_store;
 
-def create_ingestion_cache():
+def create_ingestion_cache() -> IngestionCache:
     cache = IngestionCache(
-        cache=RedisCache.from_host_and_port("localhost", 6379),
-        collection="redis_cache",
+        cache=RedisCache.from_host_and_port(
+            host=os.getenv("REDIS_SERVER"), 
+            port=os.getenv("REDIS_PORT"), 
+        ),
+        collection=os.getenv("REDIS_CACHE_COLLECTION"),
     )
 
     return cache;
 
 def custom_load_data(loader: BaseReader, folder_id: str):
     docs = loader.load_data(folder_id=folder_id)
+    count = 1
     for doc in docs:
-        doc.id_ = doc.metadata["file_name"]
-        print(f"Processing {doc.id_}")
+        #doc.id_ = doc.metadata["file_name"]
+        count += 1
+        
+    print(f"Loaded {count} nodes.")
+    
     return docs
 
 def update_llama(pipeline: IngestionPipeline):
     GoogleDriveReader = download_loader("GoogleDriveReader")
-    loader = GoogleDriveReader()        
+    loader = GoogleDriveReader()
     documents = custom_load_data(loader=loader, folder_id=os.getenv("GOOGLE_FOLDER"))
     pipeline.run(documents=documents, show_progress=True)
 
@@ -94,7 +102,7 @@ def load_from_googledrive2(deleteIndex: bool = False) -> (VectorStoreIndex, Inge
         docstore=doc_store,
         vector_store=vector_store,
         cache=cache,
-        docstore_strategy=DocstoreStrategy.UPSERTS,
+        docstore_strategy=DocstoreStrategy.UPSERTS,        
     )
     
     update_llama(pipeline);

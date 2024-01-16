@@ -1,14 +1,18 @@
 print("Initializing")
 
+import asyncio
 from math import pi
 import loggingUtils as logging
 import llamaUtils2 as llama
 from colorama import Fore
 
+print("Imports complete")
+
 delete_index = True
 
 async def main():    
     #index = await llama.bulk_from_local_folder(start_fresh);
+    print("Connecting to google drive")
     index, pipeline = llama.load_from_googledrive2(delete_index)
     
     #index = await llama.load_existing_data(delete_index);
@@ -16,6 +20,7 @@ async def main():
     # set Logging to DEBUG for more detailed outputs
     query_engine = index.as_query_engine()
     
+    print("Ready!")
     # What is Prince and what can you tell me about Hyphenation?
     while (True):
         question = input(Fore.WHITE + "Enter your question (refresh to check the drive): ")
@@ -45,8 +50,4 @@ async def main():
         print("Q: " + question)
         print("A: " + str(response))        
 
-import asyncio
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-
+asyncio.run(main())
