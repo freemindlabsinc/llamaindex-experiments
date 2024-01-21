@@ -1,11 +1,25 @@
 import logging
 import sys
+import os
+from dotenv import load_dotenv
+from elasticsearch import AsyncElasticsearch
+from llama_index import SimpleDirectoryReader
+from llama_index.callbacks import (
+        CallbackManager,
+        LlamaDebugHandler,
+        CBEventType,
+    )    
+from llama_index.vector_stores import ElasticsearchStore
+from llama_index import ServiceContext
+from llama_index.llms import OpenAI
+import llama_index
+from llama_index import VectorStoreIndex
+from llama_index.storage.storage_context import StorageContext
+import asyncio        
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-import os
-from dotenv import load_dotenv
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -16,8 +30,9 @@ bulk_data = False
 async def connect_to_elasticsearch():
     # Instantiate the Elasticsearch client right away to check we can connect
 
-    from elasticsearch import AsyncElasticsearch
+    
     es_client = AsyncElasticsearch(
+        
         [os.getenv("ES_URL")],
         ssl_assert_fingerprint=os.getenv("ES_CERTIFICATE_FINGERPRINT"),
         basic_auth=(os.getenv("ES_USERNAME"), os.getenv("ES_PASSWORD"))
@@ -30,21 +45,12 @@ async def connect_to_elasticsearch():
     return es_client
 
 def load_data(es_client):
-    from llama_index import SimpleDirectoryReader
-
-    from llama_index.callbacks import (
-        CallbackManager,
-        LlamaDebugHandler,
-        CBEventType,
-    )    
     
     # Creates a reader for the /data folder        
-    if bulk_data:
-        documents = SimpleDirectoryReader("python/data").load_data(show_progress=True)
-
+    
     # Creates the ES vector store
-    from llama_index.vector_stores import ElasticsearchStore
-    ES_DEFAULT_INDEX = os.getenv("ES_DEFAULT_INDEX")
+    
+    ES_DEFAULT_INDEX = "starter3" #os.getenv("ES_DEFAULT_INDEX")
 
     es_vector_store = ElasticsearchStore(
         index_name=ES_DEFAULT_INDEX,
@@ -52,8 +58,6 @@ def load_data(es_client):
     )
 
     # Service ctx for debug
-    from llama_index import ServiceContext
-    from llama_index.llms import OpenAI
     
     llm = OpenAI(model="gpt-3.5-turbo", temperature=0)
     llama_debug = LlamaDebugHandler(print_trace_on_end=True)
@@ -64,15 +68,14 @@ def load_data(es_client):
     )
 
     # Creates the index
-    import llama_index
+    
     llama_index.set_global_handler("simple")
-
-    from llama_index import VectorStoreIndex
-    from llama_index.storage.storage_context import StorageContext
-
+    
     storage_context = StorageContext.from_defaults(vector_store=es_vector_store)
     
     if bulk_data:
+        documents = SimpleDirectoryReader("./data").load_data(show_progress=True)
+
         index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context, service_context=service_context
         )
@@ -101,8 +104,5 @@ async def main():
         print("Q: " + question)
         print("A: " + str(response))        
 
-import asyncio
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-
+asyncio.run(main())
