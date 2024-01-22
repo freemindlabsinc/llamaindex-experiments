@@ -37,7 +37,7 @@ def load_data(es_client):
 
     # Creates a reader for the /data folder        
     if bulk_data:
-        documents = SimpleDirectoryReader("python/data").load_data(show_progress=True)
+        documents = SimpleDirectoryReader("./data").load_data(show_progress=True)
 
     # Creates the ES vector store
     from llama_index.vector_stores import ElasticsearchStore
@@ -86,8 +86,9 @@ def load_data(es_client):
     
     from llama_hub.youtube_transcript import YoutubeTranscriptReader
 
+    # experiments
     loader = YoutubeTranscriptReader()
-    documents = loader.load_data(ytlinks=['https://www.youtube.com/watch?v=i3OYlaoj-BM'])
+    yt_documents = loader.load_data(ytlinks=['https://www.youtube.com/watch?v=i3OYlaoj-BM'])
 
     index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context, service_context=service_context

@@ -50,7 +50,7 @@ async def bulk_from_local_folder(deleteIndex: bool = True) -> VectorStoreIndex:
     service_context = create_service_context()
     storage_context = StorageContext.from_defaults(vector_store = es_vector_store)
 
-    documents = SimpleDirectoryReader("python/data").load_data(show_progress=True)    
+    documents = SimpleDirectoryReader("./data").load_data(show_progress=True)    
     
     index = VectorStoreIndex.from_documents(
         documents, 
@@ -88,7 +88,7 @@ async def load_from_googledrive(deleteIndex: bool = False) -> VectorStoreIndex:
     GoogleDriveReader = download_loader("GoogleDriveReader")
     loader = GoogleDriveReader()
     #### Using folder id
-    documents = loader.load_data(folder_id="1whzYDdYsTlpM5TUe-mlfhof-r2Upj0Rs")
+    documents = loader.load_data(folder_id="1ZBu81ymVvUWn0XgSzYAeBGQ-jyXxOf9E")
     #documents = loader.load_data(file_ids= ["1jfhSUgE0wIoceFzoVz2sDHjUVnh7cTYf"])
 
     index = VectorStoreIndex.from_documents(
