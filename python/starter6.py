@@ -16,7 +16,7 @@ async def main():
     while (True):
         question = input("Enter your question: ")
         if question == "":
-            question = "what is the programwhat i prince?"
+            question = "what is the program prince?"
         response = query_engine.query(question)
         
         print("**************************** REFERENCES ****************************")

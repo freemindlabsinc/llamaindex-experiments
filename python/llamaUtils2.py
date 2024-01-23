@@ -91,7 +91,7 @@ def load_from_googledrive2(deleteIndex: bool = False) -> (VectorStoreIndex, Inge
     vector_store = create_vector_store()
     service_context = create_service_context()
     doc_store = create_document_store()    
-    cache = create_ingestion_cache();
+    #cache = create_ingestion_cache();
     embed_model = HuggingFaceEmbedding(model_name=os.getenv("EMBEDDING_MODEL"))
 
     pipeline = IngestionPipeline(        
@@ -101,7 +101,7 @@ def load_from_googledrive2(deleteIndex: bool = False) -> (VectorStoreIndex, Inge
         ],
         docstore=doc_store,
         vector_store=vector_store,
-        cache=cache,
+        #cache=cache,
         docstore_strategy=DocstoreStrategy.UPSERTS,        
     )
     
