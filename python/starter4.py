@@ -1,9 +1,21 @@
 import asyncio
 import logging
+from elasticsearch import AsyncElasticsearch
+from llama_index.vector_stores import ElasticsearchStore
+from llama_index import ServiceContext
+from llama_index.llms import OpenAI
+from llama_index.embeddings import HuggingFaceEmbedding    
+from llama_index import VectorStoreIndex
+from llama_index.storage.storage_context import StorageContext
+from llama_hub.youtube_transcript import YoutubeTranscriptReader
+from llama_index import SimpleDirectoryReader
+
 import sys
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+
+
 
 import os
 from dotenv import load_dotenv
@@ -17,7 +29,6 @@ bulk_data = True
 async def connect_to_elasticsearch():
     # Instantiate the Elasticsearch client right away to check we can connect
 
-    from elasticsearch import AsyncElasticsearch
     es_client = AsyncElasticsearch(
         [os.getenv("ES_URL")],
         ssl_assert_fingerprint=os.getenv("ES_CERTIFICATE_FINGERPRINT"),
@@ -33,14 +44,12 @@ async def connect_to_elasticsearch():
 
 
 def load_data(es_client):
-    from llama_index import SimpleDirectoryReader
-
     # Creates a reader for the /data folder        
     if bulk_data:
         documents = SimpleDirectoryReader("./data").load_data(show_progress=True)
 
     # Creates the ES vector store
-    from llama_index.vector_stores import ElasticsearchStore
+    
     ES_DEFAULT_INDEX = os.getenv("ES_DEFAULT_INDEX")
 
     es_vector_store = ElasticsearchStore(
@@ -50,12 +59,10 @@ def load_data(es_client):
     )
 
     # Service ctx for debug
-    from llama_index import ServiceContext
-    from llama_index.llms import OpenAI
     
     llm = OpenAI(model="gpt-3.5-turbo", temperature=0)
     
-    from llama_index.embeddings import HuggingFaceEmbedding    
+        
     embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     service_context = ServiceContext.from_defaults(
@@ -68,8 +75,6 @@ def load_data(es_client):
     import llama_index
     llama_index.set_global_handler("simple")
 
-    from llama_index import VectorStoreIndex
-    from llama_index.storage.storage_context import StorageContext
 
     storage_context = StorageContext.from_defaults(vector_store=es_vector_store)
     
@@ -84,8 +89,7 @@ def load_data(es_client):
             vector_store=es_vector_store, 
             service_context=service_context)        
     
-    from llama_hub.youtube_transcript import YoutubeTranscriptReader
-
+    
     # experiments
     loader = YoutubeTranscriptReader()
     yt_documents = loader.load_data(ytlinks=['https://www.youtube.com/watch?v=i3OYlaoj-BM'])
